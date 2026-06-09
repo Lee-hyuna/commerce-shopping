@@ -1,18 +1,26 @@
 'use client';
+import { memo, useCallback } from 'react';
 import type { CartItem } from '@/models/cart';
 import { useRemoveCartItem, useUpdateCartItem } from '@/services/cart/mutations';
 
 const won = (n: number) => `${n.toLocaleString('ko-KR')}원`;
 
-export function CartItemRow({ item }: { item: CartItem }) {
+function CartItemRowBase({ item }: { item: CartItem }) {
   const update = useUpdateCartItem();
   const remove = useRemoveCartItem();
   const busy = update.isPending || remove.isPending;
 
-  const changeQty = (quantity: number) => {
-    if (quantity < 1) return;
-    update.mutate({ itemId: item.itemId, quantity });
-  };
+  const changeQty = useCallback(
+    (quantity: number) => {
+      if (quantity < 1) return;
+      update.mutate({ itemId: item.itemId, quantity });
+    },
+    [item.itemId, update],
+  );
+
+  const handleRemove = useCallback(() => {
+    remove.mutate(item.itemId);
+  }, [item.itemId, remove]);
 
   return (
     <li aria-busy={busy}>
@@ -26,7 +34,9 @@ export function CartItemRow({ item }: { item: CartItem }) {
       <strong>{won(item.lineTotal.amount)}</strong>
       {!item.available && <em> 품절</em>}
 
-      <button onClick={() => remove.mutate(item.itemId)} disabled={busy}>삭제</button>
+      <button onClick={handleRemove} disabled={busy}>삭제</button>
     </li>
   );
 }
+
+export const CartItemRow = memo(CartItemRowBase);

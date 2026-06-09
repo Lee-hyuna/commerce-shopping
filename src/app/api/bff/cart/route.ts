@@ -1,24 +1,16 @@
 import { NextResponse } from 'next/server';
-import { getSession } from '@/server/auth/session';
-import { resolveGuestCartId } from '@/server/cart/guest-cart';
 import { aggregateCart } from '@/server/cart/aggregate';
 import { cartClient } from '@/server/clients/domain';
 import { AddToCartInputSchema } from '@/models/cart';
 import { toUserError } from '@/shared/errors';
+import { getCartContext } from '@/server/api/context';
 
 export const runtime = 'nodejs';
-
-async function ctx() {
-  const session = await getSession();
-  return session
-    ? { cartId: session.cartId, isGuest: false, token: session.accessToken }
-    : { cartId: await resolveGuestCartId(), isGuest: true, token: undefined };
-}
 
 // 장바구니 조회 (집계)
 export async function GET() {
   try {
-    const { cartId, isGuest, token } = await ctx();
+    const { cartId, isGuest, token } = await getCartContext();
     const cart = await aggregateCart(cartId, isGuest, token);
     return NextResponse.json(cart);
   } catch (err) {
@@ -35,10 +27,10 @@ export async function POST(request: Request) {
     if (!parsed.success) {
       return NextResponse.json({ code: 'VALIDATION', message: '잘못된 요청입니다.' }, { status: 400 });
     }
-    const { cartId, isGuest, token } = await ctx();
+    const { cartId, isGuest, token } = await getCartContext();
     await cartClient.addLine(cartId, parsed.data, token);
     const cart = await aggregateCart(cartId, isGuest, token);
-    return NextResponse.json(cart, { status: 201 });
+    return NextResponse.json(cart);
   } catch (err) {
     const e = toUserError(err);
     console.error('[BFF/cart] POST', e.code);

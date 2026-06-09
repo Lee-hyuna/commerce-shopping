@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { overlay } from 'overlay-kit';
 import { cartRemote } from '@/remotes/cart';
@@ -8,10 +9,18 @@ import { cartKeys } from './queries';
 export function useUpdateCartItem() {
   const qc = useQueryClient();
   const key = cartKeys.detail();
+  // debounce: 연속 클릭 시 마지막 요청만 전송 (race condition 방지)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   return useMutation({
-    mutationFn: ({ itemId, quantity }: { itemId: string; quantity: number }) =>
-      cartRemote.updateQuantity(itemId, quantity),
+    mutationFn: ({ itemId, quantity }: { itemId: string; quantity: number }) => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+      return new Promise<Cart>((resolve, reject) => {
+        debounceRef.current = setTimeout(() => {
+          cartRemote.updateQuantity(itemId, quantity).then(resolve).catch(reject);
+        }, 300);
+      });
+    },
 
     onMutate: async ({ itemId, quantity }) => {
       await qc.cancelQueries({ queryKey: key });
@@ -44,8 +53,7 @@ export function useUpdateCartItem() {
 export function useAddToCart() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: AddToCartInput) =>
-      cartRemote.add(input),
+    mutationFn: (input: AddToCartInput) => cartRemote.add(input),
     onSuccess: (cart) => qc.setQueryData(cartKeys.detail(), cart),
     onError: () =>
       overlay.open(({ unmount }) => (
@@ -66,6 +74,9 @@ export function useRemoveCartItem() {
 
 // 데모용 간단 토스트 (실제론 TDS Toast 컴포넌트 사용)
 function Toast({ message, onClose }: { message: string; onClose: () => void }) {
-  setTimeout(onClose, 2000);
+  useEffect(() => {
+    const id = setTimeout(onClose, 2000);
+    return () => clearTimeout(id);
+  }, [onClose]);
   return <div role="alert" className="toast">{message}</div>;
 }

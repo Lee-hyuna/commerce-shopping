@@ -1,5 +1,7 @@
 import 'server-only';
-import { authHeaders, baseUrl, callUpstream, upstream } from './upstream';
+import { authHeaders, callUpstream, upstream } from './upstream';
+
+const baseUrl = (env: string, fallback: string) => process.env[env] ?? fallback;
 
 // downstream 도메인 서비스 클라이언트. BFF 내부에서만 사용(server-only).
 // 각 서비스는 독립 배포되는 마이크로서비스라고 가정.

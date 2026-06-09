@@ -22,14 +22,12 @@ export async function resolveGuestCartId(): Promise<string> {
   return id;
 }
 
-/** 로그인 직후 호출: 게스트 카트를 사용자 카트로 병합하고 쿠키 정리. */
+/** 로그인 직후 호출: 게스트 카트를 사용자 카트로 병합하고 쿠키 정리.
+ *  병합 실패 시 쿠키를 유지해 다음 요청에서 재시도 가능하게 함. */
 export async function mergeGuestCartOnLogin(userId: string, authToken: string): Promise<void> {
   const jar = await cookies();
   const guestId = jar.get(GUEST_COOKIE)?.value;
   if (!guestId) return;
-  try {
-    await cartClient.merge(guestId, userId, authToken);
-  } finally {
-    jar.delete(GUEST_COOKIE); // 병합 실패해도 무한 재시도 방지 (정책에 따라 조정)
-  }
+  await cartClient.merge(guestId, userId, authToken);
+  jar.delete(GUEST_COOKIE);
 }

@@ -37,8 +37,6 @@ export async function callUpstream<T>(
   }
 }
 
-export const baseUrl = (env: string, fallback: string) => process.env[env] ?? fallback;
-
 export function authHeaders(token?: string): Record<string, string> {
   return token ? { authorization: `Bearer ${token}` } : {};
 }
